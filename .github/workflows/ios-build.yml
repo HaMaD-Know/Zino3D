@@ -2,7 +2,9 @@ name: iOS build
 
 on:
   push:
-    branches: ['**']
+    # Native builds are expensive (macOS minutes especially), so they run only on the main branch and
+    # Claude development branches, plus on demand. Dependency-update branches are covered by Web CI.
+    branches: [main, 'claude/**']
     paths-ignore: ['**.md', 'docs/**', 'android/**']
   workflow_dispatch:
     inputs:
