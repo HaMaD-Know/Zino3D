@@ -63,7 +63,7 @@ jobs:
 
       - name: Upload simulator build log
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ios-simulator-build-log
           path: build/sim-build.log
@@ -75,7 +75,7 @@ jobs:
           ditto -c -k --keepParent App.app "$GITHUB_WORKSPACE/Zino3D-simulator-only.zip"
 
       - name: Upload simulator build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: zino3d-ios-SIMULATOR-ONLY-not-for-devices
           path: Zino3D-simulator-only.zip
@@ -110,7 +110,7 @@ jobs:
           test -d build/device/Build/Products/Release-iphoneos/App.app
       - name: Upload device build log
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ios-device-build-log
           path: build/device-build.log
@@ -121,7 +121,7 @@ jobs:
           cp -R build/device/Build/Products/Release-iphoneos/App.app Payload/
           zip -qry Zino3D-UNSIGNED.ipa Payload
       - name: Upload unsigned IPA
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: zino3d-ios-UNSIGNED-requires-resigning
           path: Zino3D-UNSIGNED.ipa
@@ -212,7 +212,7 @@ jobs:
 
       - name: Upload signed IPA
         if: env.HAS_SIGNING == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: zino3d-ios-signed-ipa
           path: build/ipa/*.ipa
