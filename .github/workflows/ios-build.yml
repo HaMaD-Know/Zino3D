@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -86,7 +86,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -138,7 +138,7 @@ jobs:
         if: env.HAS_SIGNING != 'true'
         run: echo "::notice::iOS signing secrets are not configured, so no device-installable IPA is produced. See docs/BUILDING.md."
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: env.HAS_SIGNING == 'true'
       - uses: actions/setup-node@v4
         if: env.HAS_SIGNING == 'true'
