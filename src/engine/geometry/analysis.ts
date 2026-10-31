@@ -48,7 +48,7 @@ export function analyzeGeometry(geometry: BufferGeometry, tolerance?: number): G
   const sorted = keys.subarray(0, k).sort();
   let boundary = 0,
     nonManifold = 0;
-  for (let i = 0; i < sorted.length; ) {
+  for (let i = 0; i < sorted.length;) {
     let j = i + 1;
     while (j < sorted.length && sorted[j] === sorted[i]) j++;
     const count = j - i;

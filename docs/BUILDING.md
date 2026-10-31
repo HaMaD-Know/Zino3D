@@ -132,4 +132,5 @@ Check the current pricing and your plan's allowance on GitHub before relying on 
 The workflows were written and validated as YAML in the development container, which has no macOS and no
 Android SDK (and the Android SDK download host is blocked there), so **the Android and iOS builds have not
 been executed yet**. Their first real run happens on GitHub after the branch is pushed. The web pipeline's
-steps (format, lint, typecheck, unit tests, build, Playwright) were all run locally and pass.
+steps (format, lint, typecheck, 59 Vitest tests, production build, 14 Playwright tests across desktop, tablet
+and phone profiles) were all run locally in the development container and pass.

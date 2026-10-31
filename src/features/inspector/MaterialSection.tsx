@@ -20,6 +20,7 @@ import {
   usersOf,
 } from '../../engine/editor/materialOperations';
 import { getId, objectMaterials } from '../../engine/scene/objectUtils';
+import { getTopology, selectByMaterial } from '../../engine/geometry/topology';
 import { pickFiles } from '../../platform/fileIO';
 import { describeError } from '../../utils/errors';
 import { texturePreview } from './texturePreview';
@@ -163,6 +164,18 @@ export function MaterialSection({ mesh }: { mesh: Mesh }) {
             </button>
           ))}
         </div>
+      )}
+      {editor.mode === 'edit' && editor.editTargetId === getId(mesh) && (
+        <Button
+          size="sm"
+          onClick={() =>
+            editor.setElementSelection(
+              selectByMaterial(getTopology(mesh.geometry), editor.elementMode, index),
+            )
+          }
+        >
+          Select {editor.elementMode}s using this material
+        </Button>
       )}
       <FieldRow label="Name">
         <TextField

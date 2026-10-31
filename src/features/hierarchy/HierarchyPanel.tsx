@@ -128,6 +128,8 @@ export function HierarchyPanel() {
       { label: 'Rename', icon: Pencil, onSelect: () => setRenaming(id) },
       { label: 'Focus', icon: Focus, shortcut: 'F', onSelect: () => viewport?.frame([o]) },
       { label: 'Select children', onSelect: () => editor.select(editor.subtreeIds(o)) },
+      { label: 'Select all', shortcut: 'A', onSelect: () => editor.selectAll() },
+      { label: 'Invert selection', onSelect: () => editor.invertSelection() },
       { kind: 'separator' },
       { label: 'Duplicate', icon: Copy, shortcut: 'Ctrl+D', onSelect: () => duplicateSelected(editor) },
       { label: 'Group', icon: GroupIcon, shortcut: 'Ctrl+G', onSelect: () => groupSelected(editor) },

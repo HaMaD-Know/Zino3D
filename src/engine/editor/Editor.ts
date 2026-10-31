@@ -408,7 +408,14 @@ export class Editor implements CommandHost {
       const sel = this.elementSelection;
       const validFaces = [...sel.faces].filter((f) => f < topo.triangleCount);
       const validVerts = [...sel.vertices].filter((v) => v < topo.connectivity.canonicalCount);
-      if (validFaces.length !== sel.faces.size || validVerts.length !== sel.vertices.size) {
+      const validEdges = [...sel.edges].filter((key) =>
+        key.split('_').every((v) => Number(v) < topo.connectivity.canonicalCount),
+      );
+      if (
+        validFaces.length !== sel.faces.size ||
+        validVerts.length !== sel.vertices.size ||
+        validEdges.length !== sel.edges.size
+      ) {
         this.elementSelection = emptyElementSelection();
         this.notify('edit');
       }

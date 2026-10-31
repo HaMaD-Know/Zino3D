@@ -202,3 +202,32 @@ describe('analysis', () => {
     expect(plane.boundaryEdges).toBe(4);
   });
 });
+
+describe('edit-mode selection helpers', () => {
+  it('selects linked, by material, inverts and converts between modes', async () => {
+    const {
+      getTopology,
+      selectLinked,
+      selectByMaterial,
+      invertElementSelection,
+      convertSelection,
+      selectionFromTriangles,
+      selectionToTriangleMask,
+    } = await import('../src/engine/geometry/topology');
+    const g = twoBoxes(); // 2 boxes, groups from merge (materialIndex 0 and 1)
+    const topo = getTopology(g);
+    const one = selectionFromTriangles(topo, 'face', [0]);
+    const linked = selectLinked(topo, 'face', one);
+    expect(linked.faces.size).toBe(12);
+    const byMat = selectByMaterial(topo, 'face', 1);
+    expect(byMat.faces.size).toBe(12);
+    expect([...byMat.faces].every((f) => !linked.faces.has(f))).toBe(true);
+    expect(invertElementSelection(topo, 'face', linked).faces.size).toBe(12);
+    const verts = convertSelection(topo, 'face', 'vertex', linked);
+    expect(verts.vertices.size).toBe(8); // welded cube corners
+    const back = selectionToTriangleMask(topo, 'vertex', verts, 'contained');
+    expect(back.reduce((s, v) => s + v, 0)).toBe(12);
+    const edges = convertSelection(topo, 'vertex', 'edge', verts);
+    expect(edges.edges.size).toBe(18); // 12 cube edges + 6 face diagonals
+  });
+});
