@@ -34,6 +34,12 @@ import { baseName, formatBytes, formatCount, formatTime } from '../../utils/form
 import { PreferencesDialog } from '../settings/PreferencesDialog';
 import type { EditorLaunch } from '../editor/EditorScreen';
 
+/**
+ * The unclean-shutdown marker is read once, when the app starts. Returning to the home screen from the
+ * editor must not show the recovery banner (the editor clears the marker asynchronously on close).
+ */
+let startupMarker: SessionMarker | null = readSessionMarker();
+
 function Thumbnail({ record }: { record: ProjectRecord }) {
   const url = useMemo(
     () =>
@@ -162,7 +168,11 @@ export function HomeScreen({ onOpen }: { onOpen: (launch: EditorLaunch) => void 
   const toast = useToast();
   const [projects, setProjects] = useState<ProjectRecord[] | null>(null);
   const [storage, setStorage] = useState<StorageStatus | null>(null);
-  const [marker, setMarker] = useState<SessionMarker | null>(() => readSessionMarker());
+  const [marker, setMarkerState] = useState<SessionMarker | null>(startupMarker);
+  const setMarker = (m: SessionMarker | null) => {
+    startupMarker = m;
+    setMarkerState(m);
+  };
   const [naming, setNaming] = useState<{ kind: 'new' | 'rename' | 'sample'; record?: ProjectRecord } | null>(
     null,
   );
@@ -186,11 +196,17 @@ export function HomeScreen({ onOpen }: { onOpen: (launch: EditorLaunch) => void 
     void refresh();
   }, [refresh]);
 
+  const open = (launch: EditorLaunch) => {
+    // Opening any project consumes the startup recovery prompt.
+    startupMarker = null;
+    onOpen(launch);
+  };
+
   const create = async (name: string, extra: Partial<EditorLaunch> = {}) => {
     try {
       const record = await projectRepository.create(name);
       void requestPersistentStorage();
-      onOpen({ projectId: record.id, ...extra });
+      open({ projectId: record.id, ...extra });
     } catch (e) {
       toast.show('error', describeError(e));
     }
@@ -209,7 +225,7 @@ export function HomeScreen({ onOpen }: { onOpen: (launch: EditorLaunch) => void 
     setBusy('Opening project file…');
     try {
       const record = await projectRepository.importBundle(await file.arrayBuffer());
-      onOpen({ projectId: record.id });
+      open({ projectId: record.id });
     } catch (e) {
       toast.show('error', describeError(e));
     } finally {
@@ -242,7 +258,7 @@ export function HomeScreen({ onOpen }: { onOpen: (launch: EditorLaunch) => void 
               {marker.unsavedChanges ? '; changes made after that moment may be missing.' : '.'} You can
               reopen it or restore an earlier backup.
             </p>
-            <Button variant="primary" onClick={() => onOpen({ projectId: recoverable.id })}>
+            <Button variant="primary" onClick={() => open({ projectId: recoverable.id })}>
               Reopen
             </Button>
             <Button onClick={() => setVersionsOf(recoverable)}>Versions…</Button>
@@ -374,7 +390,7 @@ export function HomeScreen({ onOpen }: { onOpen: (launch: EditorLaunch) => void 
                 <button
                   type="button"
                   className="project-card__thumb"
-                  onClick={() => onOpen({ projectId: p.id })}
+                  onClick={() => open({ projectId: p.id })}
                   aria-label={`Open ${p.name}`}
                 >
                   <Thumbnail record={p} />
@@ -389,7 +405,7 @@ export function HomeScreen({ onOpen }: { onOpen: (launch: EditorLaunch) => void 
                   </div>
                   <MenuButton
                     entries={[
-                      { label: 'Open', icon: FolderOpen, onSelect: () => onOpen({ projectId: p.id }) },
+                      { label: 'Open', icon: FolderOpen, onSelect: () => open({ projectId: p.id }) },
                       {
                         label: 'Rename',
                         icon: Pencil,
@@ -505,7 +521,7 @@ export function HomeScreen({ onOpen }: { onOpen: (launch: EditorLaunch) => void 
           onOpen={(versionId) => {
             setVersionsOf(null);
             clearSessionMarker();
-            onOpen({ projectId: versionsOf.id, versionId });
+            open({ projectId: versionsOf.id, versionId });
           }}
         />
       )}

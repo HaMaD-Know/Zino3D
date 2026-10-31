@@ -7,3 +7,4 @@ playwright-report
 test-results
 package-lock.json
 tests/fixtures/*.glb
+tests/fixtures/*.gltf

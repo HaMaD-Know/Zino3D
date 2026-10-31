@@ -169,3 +169,29 @@ test('@responsive layout adapts and panels open as drawers', async ({ page, view
   await page.waitForTimeout(400); // let drawer transitions finish
   await page.screenshot({ path: `test-results/layout-${viewport?.width}.png` });
 });
+
+test('textured GLB keeps its texture through save and reload', async ({ page }) => {
+  await newProject(page, 'Textured');
+  await importFile(page, 'textured.glb');
+  const dialog = page.getByRole('dialog', { name: /Imported textured.glb/ });
+  await expect(dialog.locator('.import-summary')).toContainText('1Textures');
+  await dialog.getByRole('button', { name: 'Done' }).click();
+  await page.getByRole('tree').getByText('TexturedQuad', { exact: true }).click();
+  await expect(page.locator('.tex-row', { hasText: 'Base color' })).toContainText('8×8');
+  await expect(page.locator('.save-status')).toHaveText(/Saved/, { timeout: 15_000 });
+  await page.reload();
+  await page.getByRole('button', { name: 'Open Textured' }).click();
+  await page.getByRole('tree').getByText('TexturedQuad', { exact: true }).click();
+  await expect(page.locator('.tex-row', { hasText: 'Base color' })).toContainText('8×8');
+});
+
+test('multi-file glTF imports external buffer and texture; missing files are reported', async ({ page }) => {
+  await newProject(page);
+  await importFile(page, 'textured-external.gltf', 'textured-external.bin', 'checker.png');
+  const dialog = page.getByRole('dialog', { name: /Imported textured-external.gltf/ });
+  await expect(dialog.locator('.import-summary')).toContainText('1Textures');
+  await expect(dialog.locator('.z-warning-list')).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Done' }).click();
+  await importFile(page, 'textured-external.gltf');
+  await expect(page.getByText(/Missing referenced file\(s\): textured-external.bin/)).toBeVisible();
+});

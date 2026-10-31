@@ -92,20 +92,25 @@ function triangleArea2(p: Float32Array, a: number, b: number, c: number): number
 }
 
 /** Finds degenerate triangles: repeated (welded) corners or near-zero area. */
-export function findDegenerateTriangles(geometry: BufferGeometry, tolerance: number): Uint8Array {
+export function findDegenerateTriangles(
+  geometry: BufferGeometry,
+  tolerance: number,
+  /** Precomputed canonical vertex ids (from connectivity) to avoid re-welding. */
+  canonicalIds?: Uint32Array,
+): Uint8Array {
   const positions = readPositions(geometry);
   const tri = triangleVertexIndices(geometry);
   const t = tri.length / 3;
-  const canon = canonicalizeVertices(positions, tolerance);
+  const ids = canonicalIds ?? canonicalizeVertices(positions, tolerance).ids;
   const mask = new Uint8Array(t);
   const areaEps = tolerance * tolerance;
   for (let i = 0; i < t; i++) {
     const a = tri[i * 3],
       b = tri[i * 3 + 1],
       c = tri[i * 3 + 2];
-    const ca = canon.ids[a],
-      cb = canon.ids[b],
-      cc = canon.ids[c];
+    const ca = ids[a],
+      cb = ids[b],
+      cc = ids[c];
     if (ca === cb || cb === cc || ca === cc || triangleArea2(positions, a, b, c) <= areaEps) mask[i] = 1;
   }
   return mask;

@@ -239,6 +239,17 @@ function png(width, height, rgba) {
     Buffer.concat([header, ch(jsonChunk.length, 0x4e4f534a), jsonChunk, ch(bin.length, 0x004e4942), bin]),
   );
   console.log('wrote textured.glb');
+
+  // Multi-file variant: .gltf JSON referencing an external .bin and .png (tests multi-file import).
+  const geomBin = Buffer.concat(views.slice(0, 4));
+  const ext = JSON.parse(JSON.stringify(json));
+  ext.buffers = [{ byteLength: geomBin.length, uri: 'textured-external.bin' }];
+  ext.bufferViews = bufferViews.slice(0, 4);
+  ext.images = [{ uri: 'checker.png', name: 'checker' }];
+  writeFileSync(resolve(out, 'textured-external.gltf'), JSON.stringify(ext, null, 2));
+  writeFileSync(resolve(out, 'textured-external.bin'), geomBin);
+  writeFileSync(resolve(out, 'checker.png'), image);
+  console.log('wrote textured-external.gltf/.bin + checker.png');
 }
 
 // 7. Malformed GLB (valid header, corrupted JSON) and an unsupported file

@@ -33,8 +33,14 @@ self.addEventListener('fetch', (event) => {
   // Only handle same-origin app-shell requests. Blob/object URLs for user models never reach here.
   if (url.origin !== self.location.origin) return;
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(() => caches.match('./index.html', { ignoreSearch: true })));
+    event.respondWith(
+      fetch(request).catch(() => caches.match('./index.html', { ignoreSearch: true, ignoreVary: true })),
+    );
     return;
   }
-  event.respondWith(caches.match(request, { ignoreSearch: true }).then((cached) => cached || fetch(request)));
+  event.respondWith(
+    caches
+      .match(request, { ignoreSearch: true, ignoreVary: true })
+      .then((cached) => cached || fetch(request)),
+  );
 });

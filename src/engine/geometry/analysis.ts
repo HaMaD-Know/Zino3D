@@ -32,37 +32,34 @@ export function analyzeGeometry(geometry: BufferGeometry, tolerance?: number): G
   const tol = tolerance ?? defaultWeldTolerance(positions);
   const triangles = triangleVertexIndices(geometry);
   const conn = computeConnectivity({ positions, triangles }, { tolerance: tol });
-  const edgeCounts = new Map<number, number>();
+  // Count edge uses by sorting packed (lo, hi) keys: much faster than a Map for millions of edges.
   const n = conn.canonicalCount;
   const t = triangles.length / 3;
-  const useBig = n > 94906265; // sqrt(2^53)
-  const bigCounts = useBig ? new Map<string, number>() : null;
+  const keys = new Float64Array(t * 3);
+  let k = 0;
   for (let i = 0; i < t; i++) {
-    for (let k = 0; k < 3; k++) {
-      const a = conn.canonicalIds[triangles[i * 3 + k]];
-      const b = conn.canonicalIds[triangles[i * 3 + ((k + 1) % 3)]];
+    for (let e = 0; e < 3; e++) {
+      const a = conn.canonicalIds[triangles[i * 3 + e]];
+      const b = conn.canonicalIds[triangles[i * 3 + ((e + 1) % 3)]];
       if (a === b) continue;
-      const lo = Math.min(a, b),
-        hi = Math.max(a, b);
-      if (bigCounts) {
-        const key = `${lo}:${hi}`;
-        bigCounts.set(key, (bigCounts.get(key) ?? 0) + 1);
-      } else {
-        const key = lo * n + hi;
-        edgeCounts.set(key, (edgeCounts.get(key) ?? 0) + 1);
-      }
+      keys[k++] = a < b ? a * n + b : b * n + a; // exact for n < 2^26.5 (~94M welded vertices)
     }
   }
+  const sorted = keys.subarray(0, k).sort();
   let boundary = 0,
     nonManifold = 0;
-  for (const count of (bigCounts ?? edgeCounts).values()) {
+  for (let i = 0; i < sorted.length; ) {
+    let j = i + 1;
+    while (j < sorted.length && sorted[j] === sorted[i]) j++;
+    const count = j - i;
     if (count === 1) boundary++;
     else if (count > 2) nonManifold++;
+    i = j;
   }
   let bytes = 0;
   for (const attr of Object.values(geometry.attributes)) bytes += attr.array.byteLength;
   if (geometry.index) bytes += geometry.index.array.byteLength;
-  const degenerate = countMask(findDegenerateTriangles(geometry, tol));
+  const degenerate = countMask(findDegenerateTriangles(geometry, tol, conn.canonicalIds));
   return {
     vertexCount: geometry.getAttribute('position')?.count ?? 0,
     triangleCount: triangleCount(geometry),

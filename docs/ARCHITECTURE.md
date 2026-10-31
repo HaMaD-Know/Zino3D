@@ -69,6 +69,19 @@ entries are evicted, geometries/materials referenced only by evicted entries are
   better. It is a heuristic with a preview and manual correction, never applied silently.
 - Large meshes (≥150k triangles) compute connectivity in a Web Worker.
 
+### Measured performance
+
+Synthetic test: four UV spheres merged into one mesh, 996,000 triangles, Node 22 in the development container
+(single thread, no GPU). Times are indicative only; phones and tablets will be slower.
+
+| Operation                                                                | Time    |
+| ------------------------------------------------------------------------ | ------- |
+| Connected components (weld + union–find)                                 | ~0.53 s |
+| Separate into 4 objects (attribute-preserving extraction)                | ~0.17 s |
+| Full diagnostics (components, open/non-manifold edges, degenerate faces) | ~0.98 s |
+
+The inspector analyzes meshes automatically up to 250k triangles and offers a button above that.
+
 ## Native project format
 
 Projects are stored as a versioned **scene document** (structured JSON-like data) plus **binary assets**
