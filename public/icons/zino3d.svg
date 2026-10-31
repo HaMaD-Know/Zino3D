@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Zino3D">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b2e34"/>
+      <stop offset="1" stop-color="#17181b"/>
+    </linearGradient>
+    <linearGradient id="top" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffb062"/>
+      <stop offset="1" stop-color="#f08a24"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- isometric cube faces -->
+  <path d="M256 92 L398 174 L256 256 L114 174 Z" fill="url(#top)"/>
+  <path d="M114 174 L256 256 L256 420 L114 338 Z" fill="#3a3e46"/>
+  <path d="M398 174 L256 256 L256 420 L398 338 Z" fill="#4a4f58"/>
+  <!-- Z cut across the side faces -->
+  <path d="M146 228 L226 274 L226 300 L170 316 L226 348 L226 378 L146 332 L146 306 L202 290 L146 258 Z" fill="#e6e8eb"/>
+  <!-- triangulated mesh on the right face -->
+  <path d="M256 256 L398 338 M327 215 L327 379 M256 338 L398 256 M256 338 L327 379 M327 297 L398 338" fill="none" stroke="#7d828c" stroke-width="6" stroke-linecap="round"/>
+  <g fill="#f08a24">
+    <circle cx="327" cy="297" r="13"/>
+    <circle cx="327" cy="215" r="9"/>
+    <circle cx="398" cy="256" r="9"/>
+    <circle cx="256" cy="338" r="9"/>
+    <circle cx="327" cy="379" r="9"/>
+  </g>
+  <!-- edges -->
+  <path d="M256 92 L398 174 L398 338 L256 420 L114 338 L114 174 Z M114 174 L256 256 L398 174 M256 256 L256 420" fill="none" stroke="#16171a" stroke-width="10" stroke-linejoin="round"/>
+</svg>

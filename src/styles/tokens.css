@@ -1,0 +1,60 @@
+/* Zino3D design tokens — dark graphite technical UI */
+:root {
+  color-scheme: dark;
+  --z-bg: #16171a;
+  --z-bg-raised: #1f2125;
+  --z-panel: #23252a;
+  --z-panel-2: #2a2d33;
+  --z-field: #191b1e;
+  --z-hover: #31353c;
+  --z-active: #3a3f47;
+  --z-border: #34373e;
+  --z-border-strong: #454951;
+  --z-text: #e6e8eb;
+  --z-text-2: #a9aeb7;
+  --z-text-3: #7d828c;
+  --z-accent: #f08a24;
+  --z-accent-hover: #ff9c3d;
+  --z-accent-soft: rgba(240, 138, 36, 0.16);
+  --z-accent-text: #1a1206;
+  --z-info: #4ea1ff;
+  --z-success: #3fb27f;
+  --z-warning: #e3b341;
+  --z-danger: #e5534b;
+  --z-axis-x: #e0504f;
+  --z-axis-y: #6cc04a;
+  --z-axis-z: #4a8fe0;
+
+  --z-radius-sm: 4px;
+  --z-radius: 6px;
+  --z-radius-lg: 10px;
+  --z-space-1: 4px;
+  --z-space-2: 8px;
+  --z-space-3: 12px;
+  --z-space-4: 16px;
+  --z-space-5: 24px;
+  --z-font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --z-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+  --z-text-xs: 11px;
+  --z-text-sm: 12px;
+  --z-text-md: 13px;
+  --z-text-lg: 15px;
+  --z-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  --z-topbar-h: 44px;
+  --z-toolbar-h: 44px;
+  --z-touch: 40px;
+  --z-safe-top: env(safe-area-inset-top, 0px);
+  --z-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --z-safe-left: env(safe-area-inset-left, 0px);
+  --z-safe-right: env(safe-area-inset-right, 0px);
+}
+
+@media (pointer: coarse) {
+  :root {
+    --z-touch: 44px;
+    --z-topbar-h: 50px;
+    --z-toolbar-h: 52px;
+    --z-text-md: 14px;
+    --z-text-sm: 13px;
+  }
+}

@@ -1,0 +1,26 @@
+node_modules
+dist
+coverage
+playwright-report
+test-results
+blob-report
+*.log
+.DS_Store
+.vite
+# Native build outputs
+android/app/build
+android/.gradle
+android/build
+android/local.properties
+ios/App/build
+ios/App/Pods
+ios/DerivedData
+# Never commit signing material
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+*.cer
+*.pem
+.env
+.env.*
