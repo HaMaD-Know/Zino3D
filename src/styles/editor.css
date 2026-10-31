@@ -1,6 +1,8 @@
 .editor {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
   height: 100%;
   padding-left: var(--z-safe-left);
   padding-right: var(--z-safe-right);
@@ -18,6 +20,7 @@
   background: var(--z-bg-raised);
   border-bottom: 1px solid var(--z-border);
   min-width: 0;
+  overflow: hidden;
 }
 .topbar__brand {
   display: flex;
@@ -45,6 +48,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 0 1 auto;
   min-width: 0;
   padding: 0 8px;
   border-left: 1px solid var(--z-border);
@@ -96,6 +100,7 @@
   display: flex;
   align-items: center;
   gap: 2px;
+  flex: none;
 }
 .topbar__sep {
   width: 1px;

@@ -43,6 +43,30 @@ if (existsSync(resolve(root, 'android/app/src/main/res'))) {
 const iosIcon = 'ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png';
 if (existsSync(resolve(root, dirname(iosIcon)))) targets.push({ file: iosIcon, size: 1024, opaque: true });
 
+// Splash screens: dark background with the centred icon (replaces Capacitor's default artwork).
+const splashes = [];
+const androidRes = resolve(root, 'android/app/src/main/res');
+if (existsSync(androidRes)) {
+  const sizes = {
+    mdpi: [320, 480],
+    hdpi: [480, 800],
+    xhdpi: [720, 1280],
+    xxhdpi: [960, 1600],
+    xxxhdpi: [1280, 1920],
+  };
+  for (const [d, [w, h]] of Object.entries(sizes)) {
+    splashes.push({ file: `android/app/src/main/res/drawable-port-${d}/splash.png`, w, h });
+    splashes.push({ file: `android/app/src/main/res/drawable-land-${d}/splash.png`, w: h, h: w });
+  }
+  splashes.push({ file: 'android/app/src/main/res/drawable/splash.png', w: 480, h: 320 });
+}
+const iosSplash = resolve(root, 'ios/App/App/Assets.xcassets/Splash.imageset');
+if (existsSync(iosSplash)) {
+  for (const f of ['splash-2732x2732.png', 'splash-2732x2732-1.png', 'splash-2732x2732-2.png']) {
+    splashes.push({ file: `ios/App/App/Assets.xcassets/Splash.imageset/${f}`, w: 2732, h: 2732 });
+  }
+}
+
 const browser = await chromium.launch();
 const page = await browser.newPage();
 for (const t of targets) {
@@ -59,5 +83,16 @@ for (const t of targets) {
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, await page.screenshot({ omitBackground: bg === 'transparent', type: 'png' }));
   console.log(`wrote ${t.file}`);
+}
+for (const sp of splashes) {
+  const icon = Math.round(Math.min(sp.w, sp.h) * 0.28);
+  await page.setViewportSize({ width: sp.w, height: sp.h });
+  await page.setContent(
+    `<html><body style="margin:0;background:#16171a;width:${sp.w}px;height:${sp.h}px;display:flex;align-items:center;justify-content:center">
+      <img src="${dataUrl}" width="${icon}" height="${icon}"></body></html>`,
+  );
+  await page.waitForFunction(() => document.images[0]?.complete);
+  writeFileSync(resolve(root, sp.file), await page.screenshot({ type: 'png' }));
+  console.log(`wrote ${sp.file}`);
 }
 await browser.close();

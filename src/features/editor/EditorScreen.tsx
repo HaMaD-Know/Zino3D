@@ -299,7 +299,7 @@ export function EditorScreen({ launch, onExit }: { launch: EditorLaunch; onExit:
         data-left={leftOpen ? 'open' : 'closed'}
         data-right={rightOpen ? 'open' : 'closed'}
       >
-        <TopBar />
+        <TopBar compact={layout === 'phone'} />
         <main className="editor-main">
           <aside className="sidepanel sidepanel--left" aria-label="Scene hierarchy">
             <HierarchyPanel />

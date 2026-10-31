@@ -73,7 +73,8 @@ export async function saveFile(blob: Blob, fileName: string): Promise<SaveOutcom
   }
   const picker = (window as unknown as { showSaveFilePicker?: (o: unknown) => Promise<FileSystemFileHandle> })
     .showSaveFilePicker;
-  if (picker && window.isSecureContext && window.self === window.top) {
+  // Automated browsers cannot drive native save dialogs, so they always use a plain download.
+  if (picker && window.isSecureContext && window.self === window.top && !navigator.webdriver) {
     try {
       const ext = name.includes('.') ? name.slice(name.lastIndexOf('.')) : '';
       const handle = await picker({

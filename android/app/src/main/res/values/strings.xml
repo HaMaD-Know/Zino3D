@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Zino3D</string>
+    <string name="title_activity_main">Zino3D</string>
+    <string name="package_name">com.zino3d.editor</string>
+    <string name="custom_url_scheme">com.zino3d.editor</string>
+</resources>

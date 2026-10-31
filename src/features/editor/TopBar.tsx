@@ -51,7 +51,7 @@ function SaveStatus({ status }: { status: SessionStatus }) {
   );
 }
 
-export function TopBar() {
+export function TopBar({ compact }: { compact: boolean }) {
   const { editor, session, viewport, ui, projectName, renameProject } = useEditorContext();
   useEditorChannels(editor, ['history', 'selection']);
   const [status, setStatus] = useState(session.status);
@@ -93,6 +93,14 @@ export function TopBar() {
   };
 
   const moreEntries = (): MenuEntry[] => [
+    ...(compact
+      ? ([
+          { label: 'Import 3D model', icon: Upload, onSelect: () => void ui.importFiles() },
+          { label: 'Export…', icon: Download, onSelect: () => ui.openDialog('export') },
+          { label: 'Frame all', icon: Box, onSelect: () => viewport?.frame() },
+          { kind: 'separator' },
+        ] satisfies MenuEntry[])
+      : []),
     { label: 'Save now', icon: Save, shortcut: 'Ctrl+S', onSelect: () => void session.save('manual', true) },
     {
       label: 'Download project file (.zino3d)',
@@ -164,24 +172,28 @@ export function TopBar() {
           disabled={!editor.history.canRedo}
           onClick={() => editor.redo()}
         />
-        <span className="topbar__sep hide-phone" />
-        <IconButton
-          icon={Upload}
-          label="Import 3D model"
-          shortcut="Ctrl+I"
-          onClick={() => void ui.importFiles()}
-        />
-        <IconButton
-          icon={Download}
-          label="Export"
-          shortcut="Ctrl+E"
-          onClick={() => ui.openDialog('export')}
-        />
-        <MenuButton
-          entries={viewEntries}
-          render={(open) => <IconButton icon={Eye} label="View" onClick={(e) => open(e.currentTarget)} />}
-        />
-        <span className="topbar__sep hide-phone" />
+        {!compact && (
+          <>
+            <span className="topbar__sep" />
+            <IconButton
+              icon={Upload}
+              label="Import 3D model"
+              shortcut="Ctrl+I"
+              onClick={() => void ui.importFiles()}
+            />
+            <IconButton
+              icon={Download}
+              label="Export"
+              shortcut="Ctrl+E"
+              onClick={() => ui.openDialog('export')}
+            />
+            <MenuButton
+              entries={viewEntries}
+              render={(open) => <IconButton icon={Eye} label="View" onClick={(e) => open(e.currentTarget)} />}
+            />
+            <span className="topbar__sep" />
+          </>
+        )}
         <IconButton icon={PanelLeft} label="Scene hierarchy" onClick={ui.toggleLeft} />
         <IconButton icon={PanelRight} label="Properties" onClick={ui.toggleRight} />
         <MenuButton

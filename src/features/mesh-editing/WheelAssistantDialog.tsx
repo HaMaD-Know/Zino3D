@@ -6,7 +6,11 @@ import { FieldRow, Toggle } from '../../components/ui/Fields';
 import { Spinner } from '../../components/ui/Spinner';
 import { useEditorContext } from '../editor/EditorContext';
 import { prepareTopology, selectionFromTriangles, type MeshTopology } from '../../engine/geometry/topology';
-import { detectWheelCandidates, type WheelCandidate } from '../../engine/geometry/wheelDetection';
+import {
+  collectComponentPoints,
+  detectWheelCandidates,
+  type WheelCandidate,
+} from '../../engine/geometry/wheelDetection';
 import { separateComponentGroups } from '../../engine/editor/meshOperations';
 import { getId, isMesh } from '../../engine/scene/objectUtils';
 import { describeError } from '../../utils/errors';
@@ -45,12 +49,20 @@ export function WheelAssistantDialog({ onClose }: { onClose: () => void }) {
       .then((t) => {
         if (cancelled) return;
         mesh.updateWorldMatrix(true, false);
+        const points = collectComponentPoints(
+          t.positions,
+          t.triangles,
+          t.connectivity.triangleComponent,
+          t.connectivity.componentCount,
+          mesh.matrixWorld.elements,
+        );
         const comps = t.connectivity.components.map((c) => {
           const box = new Box3(new Vector3(...c.min), new Vector3(...c.max)).applyMatrix4(mesh.matrixWorld);
           return {
             id: c.id,
             min: box.min.toArray() as [number, number, number],
             max: box.max.toArray() as [number, number, number],
+            points: points[c.id],
           };
         });
         const model = comps.reduce(

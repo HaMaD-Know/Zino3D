@@ -12,6 +12,80 @@ export interface Box3Like {
   max: [number, number, number];
 }
 
+export interface ComponentInput extends Box3Like {
+  id: number;
+  /** Optional sample of the component's vertices (xyz, same space as the bounds) for shape analysis. */
+  points?: Float32Array;
+}
+
+/**
+ * Angular coverage (0..1) of the component's outermost vertices around the axis `axle`, using 24
+ * angle bins. A wheel/cylinder rim covers nearly every bin; a box covers only the bins of its corners.
+ */
+export function circularity(points: Float32Array, axle: 0 | 1 | 2, box: Box3Like): number {
+  const [u, v] = ([0, 1, 2] as const).filter((a) => a !== axle);
+  const cu = (box.min[u] + box.max[u]) / 2;
+  const cv = (box.min[v] + box.max[v]) / 2;
+  const n = Math.floor(points.length / 3);
+  if (n < 8) return 0;
+  let maxR = 0;
+  const radii = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const r = Math.hypot(points[i * 3 + u] - cu, points[i * 3 + v] - cv);
+    radii[i] = r;
+    if (r > maxR) maxR = r;
+  }
+  if (maxR <= 0) return 0;
+  const BINS = 24;
+  const bins = new Uint8Array(BINS);
+  for (let i = 0; i < n; i++) {
+    if (radii[i] < maxR * 0.85) continue;
+    const a = Math.atan2(points[i * 3 + v] - cv, points[i * 3 + u] - cu);
+    bins[Math.min(BINS - 1, Math.floor(((a + Math.PI) / (2 * Math.PI)) * BINS))] = 1;
+  }
+  let covered = 0;
+  for (const b of bins) covered += b;
+  return covered / BINS;
+}
+
+/**
+ * Collects up to `maxPerComponent` vertex positions per component (optionally transformed by a
+ * column-major 4x4 matrix) for circularity analysis.
+ */
+export function collectComponentPoints(
+  positions: Float32Array,
+  triangles: Uint32Array,
+  triangleComponent: Uint32Array,
+  componentCount: number,
+  matrix?: ArrayLike<number>,
+  maxPerComponent = 4000,
+): Float32Array[] {
+  const lists: number[][] = Array.from({ length: componentCount }, () => []);
+  const seen = new Uint8Array(Math.floor(positions.length / 3));
+  for (let t = 0; t < triangleComponent.length; t++) {
+    const list = lists[triangleComponent[t]];
+    for (let k = 0; k < 3; k++) {
+      const vi = triangles[t * 3 + k];
+      if (seen[vi] || list.length >= maxPerComponent * 3) continue;
+      seen[vi] = 1;
+      let x = positions[vi * 3],
+        y = positions[vi * 3 + 1],
+        z = positions[vi * 3 + 2];
+      if (matrix) {
+        const e = matrix;
+        const nx = e[0] * x + e[4] * y + e[8] * z + e[12];
+        const ny = e[1] * x + e[5] * y + e[9] * z + e[13];
+        const nz = e[2] * x + e[6] * y + e[10] * z + e[14];
+        x = nx;
+        y = ny;
+        z = nz;
+      }
+      list.push(x, y, z);
+    }
+  }
+  return lists.map((l) => new Float32Array(l));
+}
+
 export interface WheelCandidate {
   componentId: number;
   score: number;
@@ -31,11 +105,7 @@ function size(b: Box3Like): [number, number, number] {
   return [b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]];
 }
 
-function scoreForUp(
-  components: Array<Box3Like & { id: number }>,
-  model: Box3Like,
-  up: 0 | 1 | 2,
-): WheelCandidate[] {
+function scoreForUp(components: ComponentInput[], model: Box3Like, up: 0 | 1 | 2): WheelCandidate[] {
   const msize = size(model);
   const horizontal = ([0, 1, 2] as const).filter((a) => a !== up);
   const horizontalExtent = Math.max(msize[horizontal[0]], msize[horizontal[1]]);
@@ -62,6 +132,12 @@ function scoreForUp(
     const thickness = s[thinAxis] / d2;
     if (thickness > 0.85) continue;
     score += 0.15 * (1 - Math.max(0, thickness - 0.2) / 0.65);
+    if (c.points) {
+      const circ = circularity(c.points, thinAxis, c);
+      if (circ < 0.7) continue; // box-like profile, not a wheel
+      score += 0.1 * circ;
+      reasons.push(`round rim (${Math.round(circ * 100)}% coverage)`);
+    }
 
     const diameter = (d1 + d2) / 2;
     const rel = diameter / Math.max(horizontalExtent, 1e-12);
@@ -100,10 +176,7 @@ function scoreForUp(
   return out.sort((a, b) => b.score - a.score || a.componentId - b.componentId);
 }
 
-export function detectWheelCandidates(
-  components: Array<Box3Like & { id: number }>,
-  model: Box3Like,
-): WheelDetectionResult {
+export function detectWheelCandidates(components: ComponentInput[], model: Box3Like): WheelDetectionResult {
   let best: WheelDetectionResult = { upAxis: 1, candidates: [] };
   let bestTotal = -1;
   // Prefer Y-up (glTF convention), then Z-up, then X-up when scores tie.
