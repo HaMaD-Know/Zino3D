@@ -12,6 +12,8 @@ export interface EditorUi {
   toggleLeft: () => void;
   toggleRight: () => void;
   exit: () => void;
+  /** Opens the floating wheel picker for wheels fused into a mesh. */
+  startWheelPicker: (meshId: string) => void;
 }
 
 export interface EditorContextValue {

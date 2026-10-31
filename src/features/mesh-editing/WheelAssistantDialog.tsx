@@ -1,39 +1,39 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Box3, Vector3, type Mesh } from 'three';
+import type { Mesh } from 'three';
+import { Crosshair } from 'lucide-react';
 import { Dialog } from '../../components/ui/Dialog';
 import { Button } from '../../components/ui/Button';
 import { FieldRow, Toggle } from '../../components/ui/Fields';
 import { Spinner } from '../../components/ui/Spinner';
 import { useEditorContext } from '../editor/EditorContext';
 import { prepareTopology, selectionFromTriangles, type MeshTopology } from '../../engine/geometry/topology';
-import {
-  collectComponentPoints,
-  detectWheelCandidates,
-  type WheelCandidate,
-} from '../../engine/geometry/wheelDetection';
+import { analyzeMeshWheels } from '../../engine/geometry/wheelDetection';
 import { separateComponentGroups } from '../../engine/editor/meshOperations';
 import { getId, isMesh } from '../../engine/scene/objectUtils';
 import { describeError } from '../../utils/errors';
 import { formatCount } from '../../utils/format';
 
 interface PartRow {
-  id: number;
+  key: string;
+  componentIds: number[];
   triangles: number;
-  candidate?: WheelCandidate;
+  score?: number;
+  reasons?: string[];
 }
 
 const AXIS = ['X', 'Y', 'Z'];
 
 export function WheelAssistantDialog({ onClose }: { onClose: () => void }) {
-  const { editor, viewport } = useEditorContext();
+  const { editor, viewport, ui } = useEditorContext();
   const [mesh] = useState<Mesh | null>(() => {
     const a = editor.activeObject();
     return isMesh(a) ? a : null;
   });
   const [topo, setTopo] = useState<MeshTopology | null>(null);
   const [upAxis, setUpAxis] = useState(1);
+  const [yaw, setYaw] = useState(0);
   const [rows, setRows] = useState<PartRow[]>([]);
-  const [checked, setChecked] = useState<Set<number>>(new Set());
+  const [checked, setChecked] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [separately, setSeparately] = useState(true);
   const [centerOrigins, setCenterOrigins] = useState(true);
@@ -49,48 +49,38 @@ export function WheelAssistantDialog({ onClose }: { onClose: () => void }) {
       .then((t) => {
         if (cancelled) return;
         mesh.updateWorldMatrix(true, false);
-        const points = collectComponentPoints(
-          t.positions,
-          t.triangles,
-          t.connectivity.triangleComponent,
-          t.connectivity.componentCount,
-          mesh.matrixWorld.elements,
-        );
-        const comps = t.connectivity.components.map((c) => {
-          const box = new Box3(new Vector3(...c.min), new Vector3(...c.max)).applyMatrix4(mesh.matrixWorld);
-          return {
-            id: c.id,
-            min: box.min.toArray() as [number, number, number],
-            max: box.max.toArray() as [number, number, number],
-            points: points[c.id],
-          };
+        const result = analyzeMeshWheels({
+          positions: t.positions,
+          triangles: t.triangles,
+          triangleComponent: t.connectivity.triangleComponent,
+          componentCount: t.connectivity.componentCount,
+          matrix: mesh.matrixWorld.elements,
         });
-        const model = comps.reduce(
-          (b, c) => b.union(new Box3(new Vector3(...c.min), new Vector3(...c.max))),
-          new Box3(),
-        );
-        const result = detectWheelCandidates(comps, {
-          min: model.min.toArray() as [number, number, number],
-          max: model.max.toArray() as [number, number, number],
-        });
-        const byId = new Map(result.candidates.map((c) => [c.componentId, c]));
-        const list: PartRow[] = t.connectivity.components.map((c) => ({
-          id: c.id,
-          triangles: c.triangleCount,
-          candidate: byId.get(c.id),
+        const tri = (ids: number[]) =>
+          ids.reduce((s, id) => s + t.connectivity.components[id].triangleCount, 0);
+        const grouped = new Set(result.groups.flatMap((g) => g.componentIds));
+        const list: PartRow[] = result.groups.map((g) => ({
+          key: `g${g.anchorId}`,
+          componentIds: g.componentIds,
+          triangles: tri(g.componentIds),
+          score: g.score,
+          reasons: g.reasons,
         }));
-        list.sort(
-          (a, b) => (b.candidate?.score ?? -1) - (a.candidate?.score ?? -1) || b.triangles - a.triangles,
-        );
+        for (const c of t.connectivity.components) {
+          if (!grouped.has(c.id))
+            list.push({ key: `c${c.id}`, componentIds: [c.id], triangles: c.triangleCount });
+        }
+        list.sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || b.triangles - a.triangles);
         setTopo(t);
         setUpAxis(result.upAxis);
+        setYaw(result.yawDegrees);
         setRows(list);
         setChecked(
           new Set(
-            result.candidates
-              .filter((c) => c.score >= 0.55)
+            list
+              .filter((r) => (r.score ?? 0) >= 0.55)
               .slice(0, 8)
-              .map((c) => c.componentId),
+              .map((r) => r.key),
           ),
         );
       })
@@ -100,6 +90,11 @@ export function WheelAssistantDialog({ onClose }: { onClose: () => void }) {
       cancelled = true;
     };
   }, [editor, mesh]);
+
+  const checkedComponents = useMemo(
+    () => new Set(rows.filter((r) => checked.has(r.key)).flatMap((r) => r.componentIds)),
+    [rows, checked],
+  );
 
   // Live preview: highlight checked parts using Edit Mode face selection.
   useEffect(() => {
@@ -115,29 +110,33 @@ export function WheelAssistantDialog({ onClose }: { onClose: () => void }) {
     editor.setElementMode('face');
     const tris: number[] = [];
     for (let t = 0; t < topo.triangleCount; t++)
-      if (checked.has(topo.connectivity.triangleComponent[t])) tris.push(t);
+      if (checkedComponents.has(topo.connectivity.triangleComponent[t])) tris.push(t);
     editor.setElementSelection(selectionFromTriangles(topo, 'face', tris));
-  }, [editor, mesh, topo, checked, preview]);
+  }, [editor, mesh, topo, checkedComponents, preview]);
 
   const close = () => {
     if (editor.mode === 'edit') editor.exitEditMode();
     onClose();
   };
 
-  const totalChecked = useMemo(
-    () => rows.filter((r) => checked.has(r.id)).reduce((s, r) => s + r.triangles, 0),
-    [rows, checked],
-  );
+  const startPicker = () => {
+    if (!mesh) return;
+    if (editor.mode === 'edit') editor.exitEditMode();
+    onClose();
+    ui.startWheelPicker(getId(mesh));
+  };
+
+  const totalChecked = rows.filter((r) => checked.has(r.key)).reduce((s, r) => s + r.triangles, 0);
 
   const confirm = async () => {
     if (!mesh) return;
     setBusy(true);
     try {
       editor.exitEditMode();
-      const ids = [...checked];
+      const selected = rows.filter((r) => checked.has(r.key));
       const groups = separately
-        ? ids.map((id, i) => ({ componentIds: [id], name: `${prefix || 'Part'}_${i + 1}` }))
-        : [{ componentIds: ids, name: prefix || 'Parts' }];
+        ? selected.map((r, i) => ({ componentIds: r.componentIds, name: `${prefix || 'Part'}_${i + 1}` }))
+        : [{ componentIds: selected.flatMap((r) => r.componentIds), name: prefix || 'Parts' }];
       const created = await separateComponentGroups(editor, getId(mesh), groups, { centerOrigins });
       editor.message(
         'success',
@@ -164,6 +163,9 @@ export function WheelAssistantDialog({ onClose }: { onClose: () => void }) {
     );
   }
 
+  const single = topo?.connectivity.componentCount === 1;
+  const noCandidates = !!topo && !single && !rows.some((r) => r.score !== undefined);
+
   return (
     <Dialog
       title={`Parts of "${mesh.name || 'Mesh'}"`}
@@ -172,12 +174,17 @@ export function WheelAssistantDialog({ onClose }: { onClose: () => void }) {
       locked={busy}
       footer={
         <>
+          <Button icon={Crosshair} onClick={startPicker} disabled={busy}>
+            Pick fused wheels by tapping…
+          </Button>
           <Button onClick={close} disabled={busy}>
             Cancel
           </Button>
-          <Button variant="primary" disabled={busy || checked.size === 0} onClick={() => void confirm()}>
-            {busy && <Spinner />} Separate {checked.size} part(s)
-          </Button>
+          {!single && (
+            <Button variant="primary" disabled={busy || checked.size === 0} onClick={() => void confirm()}>
+              {busy && <Spinner />} Separate {checked.size} part(s)
+            </Button>
+          )}
         </>
       }
     >
@@ -187,51 +194,60 @@ export function WheelAssistantDialog({ onClose }: { onClose: () => void }) {
           <Spinner /> Finding disconnected parts…
         </p>
       )}
-      {topo && topo.connectivity.componentCount === 1 && (
+      {single && (
         <div className="callout callout--warn">
-          This mesh is a single connected piece, so wheels (or other parts) are fused into the body and cannot
-          be detected from geometry alone. Close this dialog, enter <b>Edit Mode → Face</b>, tap the faces of
-          a wheel (enable Multi-select or hold Shift), then press <b>Separate</b> (P).
+          This mesh is one connected piece, so the wheels are fused into the body and can't be found as
+          separate parts. Use <b>Pick fused wheels by tapping</b>: tap each wheel, adjust the highlighted
+          cylinder, and separate it.
         </div>
       )}
-      {topo && topo.connectivity.componentCount > 1 && (
+      {noCandidates && (
+        <div className="callout callout--warn">
+          No part looks like a wheel. The wheels may be fused into the body or into a larger part. Tick the
+          parts you want by hand, or use <b>Pick fused wheels by tapping</b>.
+        </div>
+      )}
+      {topo && !single && (
         <>
           <p className="z-hint">
-            Found {topo.connectivity.componentCount} disconnected parts. Wheel-like parts are ranked by shape
-            (round profile), size, contact with the ground (detected up axis: {AXIS[upAxis]}) and
-            similar-sized siblings. This is a heuristic: check the highlighted preview and correct the
-            selection before confirming.
+            Found {topo.connectivity.componentCount} disconnected parts. Wheel-like parts are ranked by round
+            rim shape, size, ground contact (up axis {AXIS[upAxis]}
+            {yaw ? `, model turned ${yaw}°` : ''}) and similar siblings; rims and hubs inside a tyre are
+            grouped with it. This is a heuristic: check the highlighted preview and correct the selection.
           </p>
           <div className="cand-list" role="list">
             {rows.map((r) => {
-              const on = checked.has(r.id);
+              const on = checked.has(r.key);
               return (
-                <label key={r.id} className={`cand ${on ? 'cand--checked' : ''}`} role="listitem">
+                <label key={r.key} className={`cand ${on ? 'cand--checked' : ''}`} role="listitem">
                   <input
                     type="checkbox"
                     checked={on}
                     onChange={() =>
                       setChecked((s) => {
                         const next = new Set(s);
-                        if (next.has(r.id)) next.delete(r.id);
-                        else next.add(r.id);
+                        if (next.has(r.key)) next.delete(r.key);
+                        else next.add(r.key);
                         return next;
                       })
                     }
                   />
                   <span>
-                    Part #{r.id + 1} · {formatCount(r.triangles)} triangles
-                    {r.candidate && <small>{r.candidate.reasons.join(' · ')}</small>}
+                    {r.componentIds.length > 1
+                      ? `Wheel assembly (${r.componentIds.length} parts)`
+                      : `Part #${r.componentIds[0] + 1}`}{' '}
+                    · {formatCount(r.triangles)} triangles
+                    {r.reasons && <small>{r.reasons.join(' · ')}</small>}
                   </span>
-                  {r.candidate ? (
+                  {r.score !== undefined ? (
                     <span
-                      title={`Wheel likelihood ${Math.round(r.candidate.score * 100)}%`}
+                      title={`Wheel likelihood ${Math.round(r.score * 100)}%`}
                       style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                     >
                       <span className="score-bar">
-                        <i style={{ width: `${Math.round(r.candidate.score * 100)}%` }} />
+                        <i style={{ width: `${Math.round(r.score * 100)}%` }} />
                       </span>
-                      <span className="z-hint">{Math.round(r.candidate.score * 100)}%</span>
+                      <span className="z-hint">{Math.round(r.score * 100)}%</span>
                     </span>
                   ) : (
                     <span className="z-hint">—</span>
@@ -250,7 +266,7 @@ export function WheelAssistantDialog({ onClose }: { onClose: () => void }) {
             />
           </FieldRow>
           <Toggle
-            label="Create one object per part (otherwise one combined object)"
+            label="Create one object per row (otherwise one combined object)"
             checked={separately}
             onChange={setSeparately}
           />

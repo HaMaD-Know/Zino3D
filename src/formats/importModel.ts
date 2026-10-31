@@ -104,8 +104,10 @@ async function createResourceMap(resources: ImportFile[]): Promise<ResourceMap> 
     if (url.startsWith('data:') || url.startsWith('blob:')) return url;
     const mapped = urls.get(normalizeName(url));
     if (mapped) return mapped;
+    // Never fetch unmatched references from the network or the app's own origin: models are local
+    // files, and a relative URL would otherwise load an unrelated app asset (or the app's index.html).
     missing.add(normalizeName(url));
-    return url;
+    throw new Error(`Referenced file "${url}" was not provided.`);
   });
   manager.onError = (url) => {
     if (!url.startsWith('blob:') && !url.startsWith('data:')) missing.add(normalizeName(url));

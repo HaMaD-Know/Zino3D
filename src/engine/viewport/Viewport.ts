@@ -116,6 +116,11 @@ export class Viewport {
   /** When true, taps add to / toggle the selection (touch devices have no Shift key). */
   additive = false;
   onContextLost?: (lost: boolean) => void;
+  /**
+   * When set, taps are offered to this handler first (used by tools such as the wheel picker).
+   * Return true to consume the tap.
+   */
+  pickInterceptor: ((hit: { object: Object3D; point: Vector3 } | null) => boolean) | null = null;
 
   private readonly viewHelper: ViewHelper;
   private readonly editOverlay = new EditOverlay();
@@ -663,6 +668,11 @@ export class Viewport {
     this.raycaster.params.Points = { threshold: this.sceneScale * 0.02 };
     this.raycaster.params.Line = { threshold: this.sceneScale * 0.02 };
     const tool = this.editor.settings.tool;
+
+    if (this.pickInterceptor) {
+      const hit = this.raycaster.intersectObjects(this.pickables(), false)[0];
+      if (this.pickInterceptor(hit ? { object: hit.object, point: hit.point.clone() } : null)) return;
+    }
 
     if (tool === 'cursor') {
       const hit = this.raycaster.intersectObjects(this.pickables(), false)[0];

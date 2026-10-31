@@ -6,6 +6,7 @@ import {
   EllipsisVertical,
   Eye,
   Grid3x3,
+  House,
   Keyboard,
   PanelLeft,
   PanelRight,
@@ -93,6 +94,8 @@ export function TopBar({ compact }: { compact: boolean }) {
   };
 
   const moreEntries = (): MenuEntry[] => [
+    { label: 'Back to projects', icon: House, onSelect: ui.exit },
+    { kind: 'separator' },
     ...(compact
       ? ([
           { label: 'Import 3D model', icon: Upload, onSelect: () => void ui.importFiles() },
@@ -123,7 +126,23 @@ export function TopBar({ compact }: { compact: boolean }) {
 
   return (
     <header className="topbar">
-      <button type="button" className="topbar__brand" onClick={ui.exit} title="Back to projects">
+      <button
+        type="button"
+        className="topbar__home"
+        onClick={ui.exit}
+        aria-label="Back to projects"
+        title="Back to projects"
+      >
+        <House size={17} aria-hidden />
+        <span className="hide-phone">Projects</span>
+      </button>
+      <button
+        type="button"
+        className="topbar__brand hide-phone"
+        onClick={ui.exit}
+        title="Back to projects"
+        tabIndex={-1}
+      >
         <img src="./icons/zino3d.svg" alt="" />
         <b className="hide-phone">Zino3D</b>
       </button>

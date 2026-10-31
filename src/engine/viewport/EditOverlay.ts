@@ -19,7 +19,8 @@ import {
   triangleCanonical,
 } from '../geometry/topology';
 
-const SELECT_COLOR = 0xff9a2e;
+// Bright blue reads clearly on orange/red paints as well as dark materials.
+const SELECT_COLOR = 0x2f9bff;
 const WIRE_COLOR = 0x9aa4b5;
 
 /** Edit Mode overlays drawn in the helper scene, following the target mesh's world matrix. */

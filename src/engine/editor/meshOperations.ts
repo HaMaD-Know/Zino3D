@@ -220,7 +220,11 @@ export async function separateComponentGroups(
 }
 
 /** Edit Mode: separate (move) or duplicate (copy) the selected geometry into a new object. */
-export function separateElementSelection(editor: Editor, mode: 'move' | 'copy'): string | null {
+export function separateElementSelection(
+  editor: Editor,
+  mode: 'move' | 'copy',
+  options: { name?: string; centerOrigin?: boolean } = {},
+): string | null {
   const mesh = editor.editTarget();
   if (!mesh) return null;
   const topo = getTopology(mesh.geometry);
@@ -235,9 +239,10 @@ export function separateElementSelection(editor: Editor, mode: 'move' | 'copy'):
     editor,
     mesh,
     extractTriangles(mesh.geometry, mask),
-    `${mesh.name || 'Mesh'}.${mode === 'move' ? 'separated' : 'duplicate'}`,
+    options.name ?? `${mesh.name || 'Mesh'}.${mode === 'move' ? 'separated' : 'duplicate'}`,
     taken,
   );
+  if (options.centerOrigin) centerOrigin(part);
   const parent = mesh.parent ?? editor.root;
   const commands: Command[] = [];
   if (mode === 'move') {

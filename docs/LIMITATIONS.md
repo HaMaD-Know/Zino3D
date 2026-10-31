@@ -14,8 +14,12 @@ Stated honestly so nobody relies on something that is not there.
   (morph target _attributes_ are kept on geometry when saving the native project).
 - Connectivity treats coincident vertices as connected (within tolerance). Two surfaces that touch exactly
   at shared positions count as one part; split them with face selection.
-- Wheel detection is a geometric heuristic. It cannot find wheels fused into the body mesh and may rank
-  round non-wheel parts highly; always check the preview.
+- Wheel detection is a geometric heuristic. It handles any heading and Y- or Z-up models and groups
+  multi-piece wheels (tyre + rim + hub), but may rank round non-wheel parts highly; always check the preview.
+- Wheels fused into the body are separated with the tap-to-pick wheel tool, which selects faces inside an
+  estimated cylinder. Body faces that lie inside that cylinder (e.g. a wheel arch touching the tyre) are
+  selected too; reduce the radius/depth, or clean up afterwards in Edit Mode. The cut follows triangles, so
+  the new wheel and the body may have open edges where they were joined.
 - Deleting faces can leave holes; Zino3D reports open edges but does not fill holes.
 - Weld merges vertices only when _all_ attributes match (keeps UV seams). There is no “merge by distance
   ignoring UVs” mode yet.

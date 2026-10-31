@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Box, Focus, Layers, Upload } from 'lucide-react';
 import { Viewport } from '../../engine/viewport/Viewport';
 import { useEditorChannels, useEditorContext } from './EditorContext';
@@ -7,7 +7,13 @@ import { Button, IconButton } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { describeError } from '../../utils/errors';
 
-export function ViewportPanel({ onViewport }: { onViewport: (v: Viewport | null) => void }) {
+export function ViewportPanel({
+  onViewport,
+  overlay,
+}: {
+  onViewport: (v: Viewport | null) => void;
+  overlay?: ReactNode;
+}) {
   const { editor, viewport, ui } = useEditorContext();
   const hostRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -126,6 +132,7 @@ export function ViewportPanel({ onViewport }: { onViewport: (v: Viewport | null)
           </div>
         </div>
       )}
+      {overlay}
       {dragging && <div className="vp-drop">Drop to import</div>}
     </div>
   );

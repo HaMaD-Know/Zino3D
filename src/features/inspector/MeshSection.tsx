@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Mesh } from 'three';
-import { Car, Scissors } from 'lucide-react';
+import { Car, Crosshair, Scissors } from 'lucide-react';
 import { Section } from '../../components/ui/Section';
 import { Button } from '../../components/ui/Button';
 import { NumberInput, FieldRow } from '../../components/ui/Fields';
@@ -9,6 +9,7 @@ import { analyzeGeometry, type GeometryDiagnostics } from '../../engine/geometry
 import { triangleCount } from '../../engine/geometry/attributes';
 import { applyMeshUtility, separateLooseParts } from '../../engine/editor/meshOperations';
 import { formatBytes, formatCount } from '../../utils/format';
+import { getId } from '../../engine/scene/objectUtils';
 
 const AUTO_ANALYZE_LIMIT = 250_000;
 
@@ -88,6 +89,14 @@ export function MeshSection({ mesh }: { mesh: Mesh }) {
         </Button>
         <Button size="sm" icon={Car} disabled={locked || skinned} onClick={() => ui.openDialog('wheels')}>
           Wheel assistant
+        </Button>
+        <Button
+          size="sm"
+          icon={Crosshair}
+          disabled={locked || skinned}
+          onClick={() => ui.startWheelPicker(getId(mesh))}
+        >
+          Pick fused wheels
         </Button>
         <Button
           size="sm"

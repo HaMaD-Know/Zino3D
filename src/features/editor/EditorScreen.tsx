@@ -29,6 +29,7 @@ import { Inspector } from '../inspector/Inspector';
 import { ImportSummaryDialog } from '../import-export/ImportSummaryDialog';
 import { ExportDialog } from '../import-export/ExportDialog';
 import { WheelAssistantDialog } from '../mesh-editing/WheelAssistantDialog';
+import { WheelPicker } from '../mesh-editing/WheelPicker';
 import { PreferencesDialog } from '../settings/PreferencesDialog';
 import { DiagnosticsDialog } from '../settings/DiagnosticsDialog';
 import { ShortcutsDialog } from '../settings/ShortcutsDialog';
@@ -61,6 +62,7 @@ export function EditorScreen({ launch, onExit }: { launch: EditorLaunch; onExit:
   const [dialog, setDialog] = useState<DialogKind | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [additive, setAdditive] = useState(false);
+  const [wheelPickerMesh, setWheelPickerMesh] = useState<string | null>(null);
   const [projectName, setProjectName] = useState('');
   const pendingLaunch = useRef(launch);
 
@@ -182,9 +184,13 @@ export function EditorScreen({ launch, onExit }: { launch: EditorLaunch; onExit:
   }, [viewport, session]);
 
   const exit = useCallback(() => {
-    if (editor?.busy) return;
+    if (editor?.busy) {
+      toast.show('info', `Please wait: ${editor.busy}`);
+      return;
+    }
+    // Unmounting the editor flushes unsaved changes before releasing resources.
     onExit();
-  }, [editor, onExit]);
+  }, [editor, onExit, toast]);
 
   const ui: EditorUi = useMemo(
     () => ({
@@ -199,6 +205,13 @@ export function EditorScreen({ launch, onExit }: { launch: EditorLaunch; onExit:
         if (compact) setLeftOpen(false);
       },
       exit,
+      startWheelPicker: (meshId) => {
+        setWheelPickerMesh(meshId);
+        if (compact) {
+          setLeftOpen(false);
+          setRightOpen(false);
+        }
+      },
     }),
     [importFiles, exit, compact],
   );
@@ -304,7 +317,14 @@ export function EditorScreen({ launch, onExit }: { launch: EditorLaunch; onExit:
           <aside className="sidepanel sidepanel--left" aria-label="Scene hierarchy">
             <HierarchyPanel />
           </aside>
-          <ViewportPanel onViewport={onViewport} />
+          <ViewportPanel
+            onViewport={onViewport}
+            overlay={
+              wheelPickerMesh ? (
+                <WheelPicker meshId={wheelPickerMesh} onClose={() => setWheelPickerMesh(null)} />
+              ) : null
+            }
+          />
           <aside className="sidepanel sidepanel--right" aria-label="Properties">
             <Inspector />
           </aside>

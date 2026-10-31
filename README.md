@@ -59,7 +59,8 @@ Requires Node.js 20.19+ (CI uses Node 22).
 2. Pick objects in the viewport or the scene list. Move/rotate/scale with the gizmo or type exact values.
 3. **Separate parts**: select a mesh → _Separate parts_ (every disconnected piece becomes an object) or the
    **Wheel & parts assistant** (ranks wheel-like pieces, previews them, lets you correct the choice).
-   If wheels are fused into the body, use **Edit Mode → Face**, select the faces, and press **Separate (P)**.
+   If wheels are fused into the body (one connected mesh), use **Pick fused wheels**: tap a wheel, adjust the
+   highlighted cylinder, and press _Separate_. Repeat for each wheel.
 4. Edit materials in the Properties panel. Shared materials are flagged; use _Make unique_ to edit one object only.
 5. **Export** GLB. Separate objects stay separate nodes with their own transforms.
 

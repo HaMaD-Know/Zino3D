@@ -192,6 +192,39 @@ test('multi-file glTF imports external buffer and texture; missing files are rep
   await expect(dialog.locator('.import-summary')).toContainText('1Textures');
   await expect(dialog.locator('.z-warning-list')).toHaveCount(0);
   await dialog.getByRole('button', { name: 'Done' }).click();
+  // Missing texture: the model still imports, with a warning.
+  await importFile(page, 'textured-external.gltf', 'textured-external.bin');
+  const partial = page.getByRole('dialog', { name: /Imported textured-external.gltf/ });
+  await expect(partial.locator('.z-warning-list')).toContainText('checker.png');
+  await partial.getByRole('button', { name: 'Done' }).click();
+  // Missing geometry buffer: the import fails with a clear message.
   await importFile(page, 'textured-external.gltf');
   await expect(page.getByText(/Missing referenced file\(s\): textured-external.bin/)).toBeVisible();
+});
+
+test('home button returns to the project list and keeps the work', async ({ page }) => {
+  await newProject(page, 'Round trip');
+  await importFile(page, 'cube.glb');
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.getByRole('button', { name: 'Back to projects' }).first().click();
+  await expect(page.getByRole('heading', { name: 'Recent projects' })).toBeVisible();
+  await expect(page.getByText('did not close cleanly')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Open Round trip' }).click();
+  await expect(page.getByRole('tree').getByText('Cube', { exact: true })).toBeVisible();
+});
+
+test('fused wheels: assistant explains and opens the tap-to-pick tool', async ({ page }) => {
+  await newProject(page);
+  await importFile(page, 'car-fused-wheels.glb');
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.getByRole('tree').getByText('CarFused', { exact: true }).click();
+  await page.getByRole('button', { name: 'Wheel assistant' }).click();
+  const dialog = page.getByRole('dialog', { name: /Parts of "CarFused"/ });
+  await expect(dialog.getByText('No part looks like a wheel')).toBeVisible();
+  await dialog.getByRole('button', { name: /Pick fused wheels by tapping/ }).click();
+  const picker = page.getByRole('dialog', { name: 'Wheel picker' });
+  await expect(picker.getByText(/Tap the centre of a wheel/)).toBeVisible();
+  await expect(page.getByText(/Edit Mode · CarFused/)).toBeVisible();
+  await picker.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByText('Object Mode')).toBeVisible();
 });

@@ -22,6 +22,30 @@
   min-width: 0;
   overflow: hidden;
 }
+.topbar__home {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 34px;
+  min-width: var(--z-touch);
+  padding: 0 10px;
+  border: 1px solid var(--z-border);
+  border-radius: var(--z-radius);
+  background: var(--z-panel-2);
+  color: var(--z-text);
+  font-size: var(--z-text-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+.topbar__home:hover {
+  background: var(--z-hover);
+}
+@media (pointer: coarse) {
+  .topbar__home {
+    height: 40px;
+  }
+}
 .topbar__brand {
   display: flex;
   align-items: center;
@@ -643,4 +667,29 @@
 .import-summary span {
   color: var(--z-text-3);
   font-size: var(--z-text-xs);
+}
+
+/* ----- wheel picker (floating, non-modal so the viewport stays tappable) ----- */
+.wheel-picker {
+  position: absolute;
+  top: 48px;
+  right: 8px;
+  z-index: 20;
+  width: min(320px, calc(100% - 16px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(35, 37, 42, 0.96);
+  border: 1px solid var(--z-accent);
+  border-radius: var(--z-radius-lg);
+  box-shadow: var(--z-shadow);
+}
+.wheel-picker p {
+  margin: 0;
+}
+.wheel-picker__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }

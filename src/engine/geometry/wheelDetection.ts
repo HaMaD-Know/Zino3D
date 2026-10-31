@@ -191,3 +191,207 @@ export function detectWheelCandidates(components: ComponentInput[], model: Box3L
   for (const c of best.candidates) c.score = Math.min(1, Math.round(c.score * 100) / 100);
   return best;
 }
+
+// ------------------------------------------------------------------------------------------------
+// Mesh-level analysis: orientation-independent detection with wheel-assembly grouping.
+// ------------------------------------------------------------------------------------------------
+
+export interface MeshWheelInput {
+  positions: Float32Array;
+  triangles: Uint32Array;
+  triangleComponent: Uint32Array;
+  componentCount: number;
+  /** Column-major 4x4 matrix to world space (object.matrixWorld.elements). */
+  matrix?: ArrayLike<number>;
+}
+
+export interface WheelGroup {
+  /** The wheel-like component that anchors the group (usually the tyre). */
+  anchorId: number;
+  /** Anchor plus smaller parts inside its bounds (rim, hub, brake disc, bolts…). */
+  componentIds: number[];
+  score: number;
+  diameter: number;
+  reasons: string[];
+}
+
+export interface MeshWheelResult {
+  upAxis: 0 | 1 | 2;
+  /** Rotation (degrees) applied about the up axis to align the model's length with an axis. */
+  yawDegrees: number;
+  groups: WheelGroup[];
+}
+
+function toWorld(positions: Float32Array, matrix?: ArrayLike<number>): Float32Array {
+  if (!matrix) return positions;
+  const e = matrix;
+  const out = new Float32Array(positions.length);
+  for (let i = 0; i < positions.length; i += 3) {
+    const x = positions[i],
+      y = positions[i + 1],
+      z = positions[i + 2];
+    out[i] = e[0] * x + e[4] * y + e[8] * z + e[12];
+    out[i + 1] = e[1] * x + e[5] * y + e[9] * z + e[13];
+    out[i + 2] = e[2] * x + e[6] * y + e[10] * z + e[14];
+  }
+  return out;
+}
+
+/** Principal horizontal direction (radians) of a point cloud around `up`, from a 2×2 covariance. */
+export function horizontalYaw(
+  points: Float32Array,
+  up: 0 | 1 | 2,
+): { angle: number; ca: number; cb: number } {
+  const [a, b] = ([0, 1, 2] as const).filter((x) => x !== up);
+  const n = Math.floor(points.length / 3);
+  const stride = Math.max(1, Math.floor(n / 200_000));
+  let sa = 0,
+    sb = 0,
+    m = 0;
+  for (let i = 0; i < n; i += stride) {
+    sa += points[i * 3 + a];
+    sb += points[i * 3 + b];
+    m++;
+  }
+  const ca = sa / Math.max(m, 1),
+    cb = sb / Math.max(m, 1);
+  let caa = 0,
+    cbb = 0,
+    cab = 0;
+  for (let i = 0; i < n; i += stride) {
+    const da = points[i * 3 + a] - ca,
+      db = points[i * 3 + b] - cb;
+    caa += da * da;
+    cbb += db * db;
+    cab += da * db;
+  }
+  return { angle: 0.5 * Math.atan2(2 * cab, caa - cbb), ca, cb };
+}
+
+/** Rotates points about `up` by -angle around (ca, cb) so the principal direction aligns with an axis. */
+function alignYaw(
+  points: Float32Array,
+  up: 0 | 1 | 2,
+  yaw: { angle: number; ca: number; cb: number },
+): Float32Array {
+  const [a, b] = ([0, 1, 2] as const).filter((x) => x !== up);
+  const c = Math.cos(yaw.angle),
+    s = Math.sin(yaw.angle);
+  const out = new Float32Array(points.length);
+  for (let i = 0; i < points.length; i += 3) {
+    const da = points[i + a] - yaw.ca,
+      db = points[i + b] - yaw.cb;
+    out[i + up] = points[i + up];
+    out[i + a] = c * da + s * db;
+    out[i + b] = -s * da + c * db;
+  }
+  return out;
+}
+
+function componentInputs(
+  points: Float32Array,
+  triangles: Uint32Array,
+  triangleComponent: Uint32Array,
+  count: number,
+  samplePerComponent = 3000,
+): ComponentInput[] {
+  const comps: ComponentInput[] = Array.from({ length: count }, (_, id) => ({
+    id,
+    min: [Infinity, Infinity, Infinity] as [number, number, number],
+    max: [-Infinity, -Infinity, -Infinity] as [number, number, number],
+  }));
+  const vertexComp = new Int32Array(points.length / 3).fill(-1);
+  const counts = new Uint32Array(count);
+  for (let t = 0; t < triangleComponent.length; t++) {
+    for (let k = 0; k < 3; k++) {
+      const v = triangles[t * 3 + k];
+      if (vertexComp[v] >= 0) continue;
+      vertexComp[v] = triangleComponent[t];
+      counts[triangleComponent[t]]++;
+    }
+  }
+  const samples: number[][] = Array.from({ length: count }, () => []);
+  const seen = new Uint32Array(count);
+  for (let v = 0; v < vertexComp.length; v++) {
+    const c = vertexComp[v];
+    if (c < 0) continue;
+    const box = comps[c];
+    for (let axis = 0; axis < 3; axis++) {
+      const value = points[v * 3 + axis];
+      if (value < box.min[axis]) box.min[axis] = value;
+      if (value > box.max[axis]) box.max[axis] = value;
+    }
+    const stride = Math.max(1, Math.floor(counts[c] / samplePerComponent));
+    if (seen[c]++ % stride === 0) samples[c].push(points[v * 3], points[v * 3 + 1], points[v * 3 + 2]);
+  }
+  comps.forEach((c, i) => (c.points = new Float32Array(samples[i])));
+  return comps.filter((c) => Number.isFinite(c.min[0]));
+}
+
+function unionBox(comps: ComponentInput[]): Box3Like {
+  const box: Box3Like = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
+  for (const c of comps) {
+    for (let a = 0; a < 3; a++) {
+      box.min[a] = Math.min(box.min[a], c.min[a]);
+      box.max[a] = Math.max(box.max[a], c.max[a]);
+    }
+  }
+  return box;
+}
+
+/**
+ * Finds wheel assemblies in a mesh's loose parts, independent of the model's yaw and up axis.
+ * Smaller parts whose centres lie inside a wheel candidate's bounds (rims, hubs, bolts) are grouped
+ * with it, so a wheel built from several loose pieces is still separated as one wheel.
+ */
+export function analyzeMeshWheels(input: MeshWheelInput): MeshWheelResult {
+  const world = toWorld(input.positions, input.matrix);
+  type Trial = { up: 0 | 1 | 2; yaw: number; comps: ComponentInput[]; candidates: WheelCandidate[] };
+  const trials: Trial[] = [];
+  for (const up of [1, 2, 0] as const) {
+    const yaw = horizontalYaw(world, up);
+    const aligned = alignYaw(world, up, yaw);
+    const comps = componentInputs(aligned, input.triangles, input.triangleComponent, input.componentCount);
+    const model = unionBox(comps);
+    trials.push({ up, yaw: yaw.angle, comps, candidates: scoreForUp(comps, model, up) });
+  }
+  const total = (list: WheelCandidate[]) => list.slice(0, 4).reduce((sum, c) => sum + c.score, 0);
+  let best = trials[0];
+  for (const t of trials.slice(1)) {
+    if (t.candidates.length >= 2 && total(t.candidates) > total(best.candidates) * 1.5 + 0.2) best = t;
+  }
+
+  const byId = new Map(best.comps.map((c) => [c.id, c]));
+  const center = (c: ComponentInput) => [0, 1, 2].map((a) => (c.min[a] + c.max[a]) / 2);
+  const diag = (c: Box3Like) => Math.hypot(c.max[0] - c.min[0], c.max[1] - c.min[1], c.max[2] - c.min[2]);
+  const assigned = new Set<number>();
+  const groups: WheelGroup[] = [];
+  // Largest candidates first so tyres absorb the rims and hubs inside them.
+  const ordered = [...best.candidates].sort((x, y) => y.diameter - x.diameter);
+  for (const cand of ordered) {
+    if (assigned.has(cand.componentId)) continue;
+    const anchor = byId.get(cand.componentId)!;
+    const pad = 0.05 * diag(anchor);
+    const members = [cand.componentId];
+    assigned.add(cand.componentId);
+    for (const other of best.comps) {
+      if (assigned.has(other.id) || diag(other) >= diag(anchor)) continue;
+      const c = center(other);
+      if ([0, 1, 2].every((a) => c[a] >= anchor.min[a] - pad && c[a] <= anchor.max[a] + pad)) {
+        members.push(other.id);
+        assigned.add(other.id);
+      }
+    }
+    const reasons = [...cand.reasons];
+    if (members.length > 1) reasons.push(`${members.length - 1} attached piece(s) grouped`);
+    groups.push({
+      anchorId: cand.componentId,
+      componentIds: members,
+      score: Math.min(1, Math.round(cand.score * 100) / 100),
+      diameter: cand.diameter,
+      reasons,
+    });
+  }
+  groups.sort((x, y) => y.score - x.score || x.anchorId - y.anchorId);
+  return { upAxis: best.up, yawDegrees: Math.round((best.yaw * 180) / Math.PI), groups };
+}
