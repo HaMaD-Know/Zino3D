@@ -28,10 +28,10 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -65,7 +65,7 @@ jobs:
 
       - name: Upload simulator build log
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ios-simulator-build-log
           path: build/sim-build.log
@@ -77,7 +77,7 @@ jobs:
           ditto -c -k --keepParent App.app "$GITHUB_WORKSPACE/Zino3D-simulator-only.zip"
 
       - name: Upload simulator build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: zino3d-ios-SIMULATOR-ONLY-not-for-devices
           path: Zino3D-simulator-only.zip
@@ -88,8 +88,8 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -112,7 +112,7 @@ jobs:
           test -d build/device/Build/Products/Release-iphoneos/App.app
       - name: Upload device build log
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ios-device-build-log
           path: build/device-build.log
@@ -123,7 +123,7 @@ jobs:
           cp -R build/device/Build/Products/Release-iphoneos/App.app Payload/
           zip -qry Zino3D-UNSIGNED.ipa Payload
       - name: Upload unsigned IPA
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: zino3d-ios-UNSIGNED-requires-resigning
           path: Zino3D-UNSIGNED.ipa
@@ -140,9 +140,9 @@ jobs:
         if: env.HAS_SIGNING != 'true'
         run: echo "::notice::iOS signing secrets are not configured, so no device-installable IPA is produced. See docs/BUILDING.md."
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: env.HAS_SIGNING == 'true'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: env.HAS_SIGNING == 'true'
         with:
           node-version: 22
@@ -214,7 +214,7 @@ jobs:
 
       - name: Upload signed IPA
         if: env.HAS_SIGNING == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: zino3d-ios-signed-ipa
           path: build/ipa/*.ipa
